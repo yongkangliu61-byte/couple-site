@@ -23,7 +23,8 @@ export default function Login() {
   const [inviteCode, setInviteCode] = useState('');
   const [legacyAccounts, setLegacyAccounts] = useState([]);
   const [migratingAccount, setMigratingAccount] = useState(null);
-  const [pendingInviteTarget, setPendingInviteTarget] = useState(null); // userId to join after registration
+  const [pendingInviteTarget, setPendingInviteTarget] = useState(null);
+  const [isInviteRegistration, setIsInviteRegistration] = useState(false);
 
   // Check existing session on mount
   useEffect(() => {
@@ -31,6 +32,18 @@ export default function Login() {
       try {
         const restored = await initAuth();
         if (restored && isLoggedIn()) {
+          // Auto-sync data from cloud for cross-device consistency
+          try {
+            const { syncFromCloud } = await import('../data/store');
+            await syncFromCloud();
+            // Also restore active data owner if set on another device
+            const activeOwner = sessionStorage.getItem('couple_active_owner');
+            if (activeOwner && activeOwner !== sessionStorage.getItem('couple_user_id')) {
+              const { setActiveDataOwner } = await import('../data/store');
+              setActiveDataOwner(activeOwner);
+              await syncFromCloud();
+            }
+          } catch {}
           navigate('/', { replace: true });
           return;
         }
@@ -59,6 +72,8 @@ export default function Login() {
     setBoyName('');
     setGirlName('');
     setStartDate('2024-01-01');
+    setIsInviteRegistration(false);
+    setPendingInviteTarget(null);
   };
 
   const [resetMode, setResetMode] = useState(false);
@@ -98,23 +113,43 @@ export default function Login() {
     }
 
     setCurrentUser(result.userId, email.trim());
+    // Auto-sync data from cloud
+    try {
+      const { syncFromCloud } = await import('../data/store');
+      await syncFromCloud();
+      const activeOwner = sessionStorage.getItem('couple_active_owner');
+      if (activeOwner && activeOwner !== result.userId) {
+        const { setActiveDataOwner } = await import('../data/store');
+        setActiveDataOwner(activeOwner);
+        await syncFromCloud();
+      }
+    } catch {}
     navigate('/', { replace: true });
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!email.trim()) { setError('请输入邮箱'); return; }
-    if (!boyName.trim()) { setError('请输入男生名字'); return; }
-    if (!girlName.trim()) { setError('请输入女生名字'); return; }
     if (!password.trim()) { setError('请输入密码'); return; }
     if (password.length < 6) { setError('密码至少需要6位'); return; }
     if (password !== confirmPassword) { setError('两次输入的密码不一致'); return; }
 
+    // For invite registration, skip names/date validation
+    if (!isInviteRegistration) {
+      if (!boyName.trim()) { setError('请输入男生名字'); return; }
+      if (!girlName.trim()) { setError('请输入女生名字'); return; }
+    }
+
     setLoading(true);
     setError('');
 
-    const coupleNames = { boy: boyName.trim(), girl: girlName.trim() };
-    const result = await signUp(email.trim(), password, coupleNames, startDate);
+    // Use provided names or placeholders for invite registration
+    const coupleNames = isInviteRegistration
+      ? { boy: '他', girl: '她' }
+      : { boy: boyName.trim(), girl: girlName.trim() };
+    const date = isInviteRegistration ? new Date().toISOString().slice(0, 10) : startDate;
+
+    const result = await signUp(email.trim(), password, coupleNames, date);
 
     if (result.error) {
       setError(result.error);
@@ -125,7 +160,7 @@ export default function Login() {
     // Save data locally as well
     setCurrentUser(result.userId, email.trim());
     saveData('coupleNames', coupleNames);
-    saveData('startDate', startDate);
+    saveData('startDate', date);
 
     // If migrating from legacy account
     if (migratingAccount) {
@@ -140,7 +175,7 @@ export default function Login() {
       const inviteCodeUsed = inviteCode.trim().toUpperCase();
       if (inviteCodeUsed) {
         await joinSharedAccount(inviteCodeUsed);
-        // Sync owner's data from cloud
+        // Sync owner's data from cloud (this overwrites local defaults with owner's data)
         const { syncFromCloud } = await import('../data/store');
         await syncFromCloud();
       }
@@ -186,10 +221,11 @@ export default function Login() {
       return;
     }
 
-    // Not logged in - store target and prompt registration
+    // Not logged in - switch to simplified registration (email + password only)
     setPendingInviteTarget(targetUserId);
+    setIsInviteRegistration(true);
     setMode('register');
-    setError('请注册账户，完成后将自动加入共享');
+    setError('设置邮箱和密码即可加入共享账户');
   };
 
   const handleLegacyLogin = (accountName) => {
@@ -420,7 +456,15 @@ export default function Login() {
         {mode === 'register' && (
           <>
             <div className="login-header">
-              {boyName && girlName ? (
+              {isInviteRegistration ? (
+                <>
+                  <div className="login-avatars">
+                    <span className="login-avatar-icon">🎫</span>
+                  </div>
+                  <h1 className="login-title">加入共享账户</h1>
+                  <p className="login-subtitle">设置邮箱和密码即可加入</p>
+                </>
+              ) : boyName && girlName ? (
                 <div className="login-avatars">
                   <span className="login-avatar-icon">👦</span>
                   <span className="login-heart-icon">❤</span>
@@ -431,12 +475,16 @@ export default function Login() {
                   <span className="login-avatar-icon">💝</span>
                 </div>
               )}
-              <h1 className="login-title">
-                {displayNames.boy} & {displayNames.girl}
-              </h1>
-              <p className="login-subtitle">
-                {migratingAccount ? `从"${migratingAccount}"迁移数据` : '创建属于你们的专属账户'}
-              </p>
+              {!isInviteRegistration && (
+                <>
+                  <h1 className="login-title">
+                    {displayNames.boy} & {displayNames.girl}
+                  </h1>
+                  <p className="login-subtitle">
+                    {migratingAccount ? `从"${migratingAccount}"迁移数据` : '创建属于你们的专属账户'}
+                  </p>
+                </>
+              )}
             </div>
             <form className="login-form" onSubmit={handleRegister}>
               <div className="login-input-group">
@@ -450,35 +498,39 @@ export default function Login() {
                   autoFocus
                 />
               </div>
-              <div className="login-input-row">
-                <div className="login-input-group login-input-half">
-                  <span className="login-input-icon">👦</span>
-                  <input
-                    className="login-input"
-                    placeholder="男生名字"
-                    value={boyName}
-                    onChange={(e) => setBoyName(e.target.value)}
-                  />
-                </div>
-                <div className="login-input-group login-input-half">
-                  <span className="login-input-icon">👧</span>
-                  <input
-                    className="login-input"
-                    placeholder="女生名字"
-                    value={girlName}
-                    onChange={(e) => setGirlName(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="login-input-group">
-                <span className="login-input-icon">📅</span>
-                <input
-                  type="date"
-                  className="login-input"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
+              {!isInviteRegistration && (
+                <>
+                  <div className="login-input-row">
+                    <div className="login-input-group login-input-half">
+                      <span className="login-input-icon">👦</span>
+                      <input
+                        className="login-input"
+                        placeholder="男生名字"
+                        value={boyName}
+                        onChange={(e) => setBoyName(e.target.value)}
+                      />
+                    </div>
+                    <div className="login-input-group login-input-half">
+                      <span className="login-input-icon">👧</span>
+                      <input
+                        className="login-input"
+                        placeholder="女生名字"
+                        value={girlName}
+                        onChange={(e) => setGirlName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="login-input-group">
+                    <span className="login-input-icon">📅</span>
+                    <input
+                      type="date"
+                      className="login-input"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
               <div className="login-input-group">
                 <span className="login-input-icon">🔑</span>
                 <input
@@ -501,12 +553,14 @@ export default function Login() {
               </div>
               {error && <p className="login-error">{error}</p>}
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? '注册中...' : migratingAccount ? '迁移并注册' : '创建账户并进入'}
+                {loading ? '注册中...' : isInviteRegistration ? '注册并加入' : migratingAccount ? '迁移并注册' : '创建账户并进入'}
               </button>
             </form>
             <p className="login-switch">
-              <button onClick={() => { setMode('select'); clearFields(); }} className="login-switch-btn">← 返回</button>
-              <button onClick={() => { setMode('login'); clearFields(); }} className="login-switch-btn" style={{ marginLeft: '1rem' }}>已有账户？登录</button>
+              <button onClick={() => { setMode('select'); clearFields(); setIsInviteRegistration(false); setPendingInviteTarget(null); }} className="login-switch-btn">← 返回</button>
+              {!isInviteRegistration && (
+                <button onClick={() => { setMode('login'); clearFields(); }} className="login-switch-btn" style={{ marginLeft: '1rem' }}>已有账户？登录</button>
+              )}
             </p>
           </>
         )}
