@@ -5,7 +5,7 @@ import {
   useInviteCode, joinSharedAccount,
   getLegacyAccounts, getLegacyAccountInfo, getLegacyAccountData,
 } from '../data/store';
-import { signUp, signIn, isCloudEnabled } from '../data/supabase';
+import { signUp, signIn, isCloudEnabled, resetPassword } from '../data/supabase';
 import { saveData } from '../data/store';
 import './Login.css';
 
@@ -59,6 +59,27 @@ export default function Login() {
     setBoyName('');
     setGirlName('');
     setStartDate('2024-01-01');
+  };
+
+  const [resetMode, setResetMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) { setError('请输入邮箱地址'); return; }
+
+    setLoading(true);
+    setError('');
+
+    const result = await resetPassword(email.trim());
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setResetSent(true);
+      setError('');
+    }
   };
 
   const handleLogin = async (e) => {
@@ -328,37 +349,70 @@ export default function Login() {
               <h1 className="login-title">登录</h1>
             </div>
 
-            <form className="login-form" onSubmit={handleLogin}>
-              <div className="login-input-group">
-                <span className="login-input-icon">📧</span>
-                <input
-                  type="email"
-                  className="login-input"
-                  placeholder="邮箱"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="login-input-group">
-                <span className="login-input-icon">🔒</span>
-                <input
-                  type="password"
-                  className="login-input"
-                  placeholder="密码"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                />
-              </div>
-              {error && <p className="login-error">{error}</p>}
-              <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? '登录中...' : '登录'}
-              </button>
-            </form>
-            <p className="login-switch">
-              <button onClick={() => { setMode('select'); clearFields(); }} className="login-switch-btn">← 返回</button>
-              <button onClick={() => { setMode('register'); clearFields(); setMigratingAccount(null); }} className="login-switch-btn" style={{ marginLeft: '1rem' }}>注册</button>
-            </p>
+            {resetMode ? (
+              <>
+                <form className="login-form" onSubmit={handleForgotPassword}>
+                  <div className="login-input-group">
+                    <span className="login-input-icon">📧</span>
+                    <input
+                      type="email"
+                      className="login-input"
+                      placeholder="输入注册邮箱"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                      autoFocus
+                    />
+                  </div>
+                  {error && <p className="login-error">{error}</p>}
+                  {resetSent && (
+                    <p className="login-error" style={{ color: '#43a047' }}>
+                      密码重置链接已发送到您的邮箱，请查收邮件
+                    </p>
+                  )}
+                  <button type="submit" className="login-btn" disabled={loading}>
+                    {loading ? '发送中...' : '发送重置链接'}
+                  </button>
+                </form>
+                <p className="login-switch">
+                  <button onClick={() => { setResetMode(false); setResetSent(false); setError(''); }} className="login-switch-btn">← 返回登录</button>
+                </p>
+              </>
+            ) : (
+              <>
+                <form className="login-form" onSubmit={handleLogin}>
+                  <div className="login-input-group">
+                    <span className="login-input-icon">📧</span>
+                    <input
+                      type="email"
+                      className="login-input"
+                      placeholder="邮箱"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="login-input-group">
+                    <span className="login-input-icon">🔒</span>
+                    <input
+                      type="password"
+                      className="login-input"
+                      placeholder="密码"
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                    />
+                  </div>
+                  {error && <p className="login-error">{error}</p>}
+                  <button type="submit" className="login-btn" disabled={loading}>
+                    {loading ? '登录中...' : '登录'}
+                  </button>
+                </form>
+                <p className="login-switch">
+                  <button onClick={() => { setMode('select'); clearFields(); }} className="login-switch-btn">← 返回</button>
+                  <button onClick={() => { setResetMode(true); setResetSent(false); setError(''); }} className="login-switch-btn" style={{ marginLeft: '0.5rem' }}>忘记密码</button>
+                  <button onClick={() => { setMode('register'); clearFields(); setMigratingAccount(null); }} className="login-switch-btn" style={{ marginLeft: '0.5rem' }}>注册</button>
+                </p>
+              </>
+            )}
           </>
         )}
 

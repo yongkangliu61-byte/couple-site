@@ -90,6 +90,17 @@ export async function signOut() {
   await client.auth.signOut();
 }
 
+export async function resetPassword(email) {
+  const client = getClient();
+  if (!client) return { error: '云端未配置' };
+
+  const { error } = await client.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: window.location.origin + '/login',
+  });
+
+  return error ? { error: error.message } : { success: true };
+}
+
 export async function getSession() {
   const client = getClient();
   if (!client) return null;

@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { getData, saveData } from '../data/store';
+import { getData, saveData, getEffectiveUserId } from '../data/store';
 import { isLoggedIn } from '../data/store';
 import { readFileAsBase64, createThumbnail } from '../utils/helpers';
+import { uploadFile, deleteFile } from '../data/supabase';
 import './Gallery.css';
 
 const INITIAL_SHOW = 6;
@@ -93,10 +94,17 @@ export default function Gallery() {
       try {
         const base64 = await readFileAsBase64(file);
         const thumb = await createThumbnail(base64);
+        const userId = getEffectiveUserId();
+        // Try cloud upload first
+        let src = base64;
+        try {
+          const url = await uploadFile(userId, file.name, base64);
+          if (url) src = url;
+        } catch {}
         const maxId = galleryPhotos.reduce((max, p) => Math.max(max, p.id || 0), 0);
         const newPhoto = {
           id: maxId + 1,
-          src: base64,
+          src,
           thumb,
           caption: file.name.replace(/\.[^.]+$/, ''),
           note: '',
@@ -126,9 +134,15 @@ export default function Gallery() {
         try {
           const base64 = await readFileAsBase64(file);
           const thumb = await createThumbnail(base64);
+          const userId = getEffectiveUserId();
+          let src = base64;
+          try {
+            const url = await uploadFile(userId, file.name, base64);
+            if (url) src = url;
+          } catch {}
           completed++;
           setBatchImporting({ current: completed, total });
-          return { src: base64, thumb, caption: file.name.replace(/\.[^.]+$/, ''), note: '', album: currentAlbum };
+          return { src, thumb, caption: file.name.replace(/\.[^.]+$/, ''), note: '', album: currentAlbum };
         } catch (err) {
           completed++;
           setBatchImporting({ current: completed, total });
@@ -155,6 +169,11 @@ export default function Gallery() {
 
   const handleDeletePhoto = (photo) => {
     if (!confirm('确定删除这张照片？')) return;
+    // Try to delete from cloud storage if it's a Supabase URL
+    if (photo.src && photo.src.includes('supabase.co')) {
+      const userId = getEffectiveUserId();
+      deleteFile(userId, photo.src);
+    }
     const updated = galleryPhotos.filter((p) => p.id !== photo.id);
     saveData('galleryPhotos', updated);
     refresh();

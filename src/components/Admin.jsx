@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getData, saveData, resetData, resetAllData, isCustomized, getTheme, saveTheme, resetTheme, themePresets, applyTheme, generateThemeFromColor, getCurrentUserId, getCurrentUserEmail, getEffectiveUserId, getActiveDataOwner, setActiveDataOwner, isViewingSharedData, generateInviteCode, getAccountInviteCodes, deleteInviteCode, getSharedMembers, getSharedAccounts, leaveSharedAccount, removeSharedMember, syncToCloud, syncFromCloud, checkCloudConnection } from '../data/store';
 import { readFileAsBase64, createThumbnail } from '../utils/helpers';
-import { uploadFile } from '../data/supabase';
+import { uploadFile, deleteFile } from '../data/supabase';
 import './Admin.css';
 
 const TABS = [
@@ -69,7 +69,7 @@ export default function Admin() {
 
   const showMsg = (msg) => {
     setMessage(msg);
-    setTimeout(() => setMessage(''), 2000);
+    setTimeout(() => setMessage(''), 3000);
   };
 
   // Anniversaries
@@ -125,6 +125,12 @@ export default function Admin() {
   };
 
   const deletePhoto = (index) => {
+    const photo = photos[index];
+    // Clean up from cloud storage if it's a Supabase URL
+    if (photo && photo.src && photo.src.includes('supabase.co')) {
+      const userId = getEffectiveUserId();
+      deleteFile(userId, photo.src);
+    }
     const list = photos.filter((_, i) => i !== index);
     savePhotos(list);
   };
