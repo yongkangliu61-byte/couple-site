@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Hearts from './Hearts';
-import { getData, isLoggedIn, getCurrentUserEmail, cloudSignOut, isViewingSharedData, setActiveDataOwner, syncFromCloud } from '../data/store';
+import { getData, isLoggedIn, getCurrentUserEmail, cloudSignOut, isViewingSharedData, setActiveDataOwner, syncFromCloud, applyTheme } from '../data/store';
 import './Layout.css';
 
 export default function Layout({ children }) {
@@ -12,12 +12,12 @@ export default function Layout({ children }) {
   const loggedIn = isLoggedIn();
   const [dataKey, setDataKey] = useState(0);
 
-  // Auto-sync from cloud on mount and navigation (keeps data fresh across devices)
+  // Auto-sync from cloud on mount (keeps data fresh across devices)
   useEffect(() => {
     if (!loggedIn) return;
     syncFromCloud().then(() => {
-      // Force children to re-mount with fresh data from localStorage
-      setDataKey(k => k + 1);
+      applyTheme(); // Apply synced theme CSS variables
+      setDataKey(k => k + 1); // Force children to re-mount with fresh data
     }).catch(() => {});
   }, [loggedIn]);
 
