@@ -256,24 +256,60 @@
   font-size: 0.85rem;
 }
 
-.login-account-new {
+/* Entry options (select screen) */
+.login-entry-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-entry-section {
+  text-align: center;
+}
+
+.login-entry-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.5rem;
+}
+
+.login-entry-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  font-family: inherit;
+}
+
+.login-entry-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.02);
+}
+
+.login-entry-btn-icon {
+  font-size: 1.2rem;
+}
+
+.login-entry-btn-new {
   border-style: dashed;
   background: rgba(255, 255, 255, 0.08);
 }
 
-.login-account-new:hover {
+.login-entry-btn-new:hover {
   background: rgba(255, 255, 255, 0.18);
-}
-
-.login-account-new-icon {
-  font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 300;
-}
-
-.login-account-new-text {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 0.9rem;
 }
 
 @media (max-width: 500px) {

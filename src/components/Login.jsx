@@ -11,7 +11,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [mode, setMode] = useState('select'); // 'select' | 'login' | 'register'
   const [accounts, setAccounts] = useState([]);
-  const [selectedAccount, setSelectedAccount] = useState('');
   const [accountName, setAccountName] = useState('');
   const [boyName, setBoyName] = useState('');
   const [girlName, setGirlName] = useState('');
@@ -21,19 +20,18 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 页面显示的情侣名字：登录模式用选中账户的，注册模式用当前输入的，选择模式不显示
-  const displayNames = mode === 'login' && selectedAccount
-    ? (getAccountInfo(selectedAccount).coupleNames)
+  // 登录页面动态显示情侣名字
+  const loginInfo = (accountName && accounts.includes(accountName))
+    ? getAccountInfo(accountName)
+    : null;
+  const displayNames = mode === 'login'
+    ? (loginInfo ? loginInfo.coupleNames : { boy: '?', girl: '?' })
     : mode === 'register'
     ? { boy: boyName || '?', girl: girlName || '?' }
     : getData('coupleNames');
 
   useEffect(() => {
-    const list = getAccounts();
-    setAccounts(list);
-    if (list.length === 0) {
-      setMode('register');
-    }
+    setAccounts(getAccounts());
   }, []);
 
   const clearFields = () => {
@@ -47,17 +45,16 @@ export default function Login() {
   };
 
   const goSelect = () => {
-    const list = getAccounts();
-    setAccounts(list);
-    setSelectedAccount('');
+    setAccounts(getAccounts());
     setMode('select');
     clearFields();
   };
 
-  const selectAccount = (name) => {
-    setSelectedAccount(name);
+  const goLogin = (name) => {
+    setAccountName(name || '');
     setMode('login');
     setError('');
+    setPassword('');
   };
 
   const goRegister = () => {
@@ -67,13 +64,21 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!password.trim()) return;
+    if (!accountName.trim()) { setError('请输入账户名'); return; }
+    if (!password.trim()) { setError('请输入密码'); return; }
+
+    const name = accountName.trim();
+    if (!accounts.includes(name)) {
+      setError('账户不存在，请检查账户名或创建新账户');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
       const hash = await sha256(password.trim());
-      if (verifyPassword(selectedAccount, hash)) {
-        loginToAccount(selectedAccount);
+      if (verifyPassword(name, hash)) {
+        loginToAccount(name);
         navigate('/');
       } else {
         setError('密码错误，请重试');
@@ -137,36 +142,63 @@ export default function Login() {
       </div>
 
       <div className="login-card">
-        {/* ===== 选择账户 ===== */}
+        {/* ===== 选择入口 ===== */}
         {mode === 'select' && (
           <>
             <div className="login-header">
               <div className="login-avatars">
                 <span className="login-avatar-icon">💕</span>
               </div>
-              <h1 className="login-title">选择账户</h1>
-              <p className="login-subtitle">选择你的账户进入爱情纪念册</p>
+              <h1 className="login-title">爱情纪念册</h1>
+              <p className="login-subtitle">选择一种方式进入</p>
             </div>
-            <div className="login-account-list">
-              {accounts.map((name) => {
-                const info = getAccountInfo(name);
-                return (
-                  <button
-                    key={name}
-                    className="login-account-card"
-                    onClick={() => selectAccount(name)}
-                  >
-                    <span className="login-account-name">{name}</span>
-                    <span className="login-account-couple">
-                      {info.coupleNames.boy} & {info.coupleNames.girl}
-                    </span>
-                  </button>
-                );
-              })}
-              <button className="login-account-card login-account-new" onClick={goRegister}>
-                <span className="login-account-new-icon">+</span>
-                <span className="login-account-new-text">创建新账户</span>
-              </button>
+
+            <div className="login-entry-options">
+              {/* 已有本地账户 */}
+              {accountExists && (
+                <div className="login-entry-section">
+                  <p className="login-entry-label">已有账户</p>
+                  <div className="login-account-list">
+                    {accounts.map((name) => {
+                      const info = getAccountInfo(name);
+                      return (
+                        <button
+                          key={name}
+                          className="login-account-card"
+                          onClick={() => goLogin(name)}
+                        >
+                          <span className="login-account-name">{name}</span>
+                          <span className="login-account-couple">
+                            {info.coupleNames.boy} & {info.coupleNames.girl}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 登录已有账户 */}
+              <div className="login-entry-section">
+                <p className="login-entry-label">
+                  {accountExists ? '其他方式' : '欢迎回来'}
+                </p>
+                <button className="login-entry-btn" onClick={() => goLogin('')}>
+                  <span className="login-entry-btn-icon">🔑</span>
+                  <span>登录已有账户</span>
+                </button>
+              </div>
+
+              {/* 创建新账户 */}
+              <div className="login-entry-section">
+                <p className="login-entry-label">
+                  {accountExists ? '或者' : '首次使用'}
+                </p>
+                <button className="login-entry-btn login-entry-btn-new" onClick={goRegister}>
+                  <span className="login-entry-btn-icon">+</span>
+                  <span>创建新账户</span>
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -175,35 +207,50 @@ export default function Login() {
         {mode === 'login' && (
           <>
             <div className="login-header">
-              <div className="login-avatars">
-                <span className="login-avatar-icon">👦</span>
-                <span className="login-heart-icon">❤</span>
-                <span className="login-avatar-icon">👧</span>
-              </div>
+              {loginInfo ? (
+                <div className="login-avatars">
+                  <span className="login-avatar-icon">👦</span>
+                  <span className="login-heart-icon">❤</span>
+                  <span className="login-avatar-icon">👧</span>
+                </div>
+              ) : (
+                <div className="login-avatars">
+                  <span className="login-avatar-icon">🔐</span>
+                </div>
+              )}
               <h1 className="login-title">
-                {displayNames.boy} & {displayNames.girl}
+                {loginInfo ? `${displayNames.boy} & ${displayNames.girl}` : '登录账户'}
               </h1>
-              <p className="login-subtitle login-account-badge">{selectedAccount}</p>
             </div>
+
             <form className="login-form" onSubmit={handleLogin}>
+              <div className="login-input-group">
+                <span className="login-input-icon">👤</span>
+                <input
+                  className="login-input"
+                  placeholder="账户名"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  autoFocus
+                />
+              </div>
               <div className="login-input-group">
                 <span className="login-input-icon">🔒</span>
                 <input
                   type="password"
                   className="login-input"
-                  placeholder="请输入密码"
+                  placeholder="密码"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                  autoFocus
                 />
               </div>
               {error && <p className="login-error">{error}</p>}
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? '验证中...' : '进入我们的世界'}
+                {loading ? '验证中...' : '登录'}
               </button>
             </form>
             <p className="login-switch">
-              <button onClick={goSelect} className="login-switch-btn">← 切换账户</button>
+              <button onClick={goSelect} className="login-switch-btn">← 返回</button>
             </p>
           </>
         )}
@@ -226,9 +273,7 @@ export default function Login() {
               <h1 className="login-title">
                 {displayNames.boy} & {displayNames.girl}
               </h1>
-              <p className="login-subtitle">
-                {accountExists ? '创建属于你们的专属账户' : '首次访问，创建专属账户'}
-              </p>
+              <p className="login-subtitle">创建属于你们的专属账户</p>
             </div>
             <form className="login-form" onSubmit={handleRegister}>
               <div className="login-input-group">
@@ -295,11 +340,9 @@ export default function Login() {
                 {loading ? '创建中...' : '创建账户并进入'}
               </button>
             </form>
-            {accountExists && (
-              <p className="login-switch">
-                <button onClick={goSelect} className="login-switch-btn">← 返回选择账户</button>
-              </p>
-            )}
+            <p className="login-switch">
+              <button onClick={goSelect} className="login-switch-btn">← 返回</button>
+            </p>
           </>
         )}
       </div>
