@@ -1,17 +1,17 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Hearts from './Hearts';
-import { getData, logout, isLoggedIn, getCurrentAccount } from '../data/store';
+import { getData, isLoggedIn, getCurrentUserEmail, cloudSignOut, isViewingSharedData, setActiveDataOwner } from '../data/store';
 import './Layout.css';
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const names = getData('coupleNames');
-  const accountName = getCurrentAccount();
+  const userEmail = getCurrentUserEmail();
   const loggedIn = isLoggedIn();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await cloudSignOut();
     navigate('/login');
   };
 
@@ -31,15 +31,42 @@ export default function Layout({ children }) {
       </main>
 
       <footer className="footer">
+        {isViewingSharedData() && (
+          <div style={{
+            marginBottom: '0.8rem',
+            padding: '0.4rem 1rem',
+            background: 'rgba(255,152,0,0.15)',
+            borderRadius: '20px',
+            display: 'inline-block',
+          }}>
+            <span style={{ color: '#ff9800', fontSize: '0.82rem' }}>
+              🔗 共享模式 · 查看共享账户数据
+            </span>
+            <button
+              onClick={() => { setActiveDataOwner(null); window.location.reload(); }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#ff9800',
+                cursor: 'pointer',
+                fontSize: '0.78rem',
+                marginLeft: '0.6rem',
+                textDecoration: 'underline',
+              }}
+            >
+              切换回我的
+            </button>
+          </div>
+        )}
         <p>
           Made with <span className="footer-heart">&#10084;</span> for {names.boy} & {names.girl}
         </p>
         <p style={{ marginTop: '0.3rem' }}>Forever & Always</p>
         {loggedIn && (
           <div style={{ marginTop: '0.6rem' }}>
-            {accountName && (
+            {userEmail && (
               <span style={{ color: '#bbb', fontSize: '0.78rem', marginRight: '0.8rem' }}>
-                @{accountName}
+                {userEmail}
               </span>
             )}
             <button

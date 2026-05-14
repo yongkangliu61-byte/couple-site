@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getData, saveData, resetData, resetAllData, isCustomized, getTheme, saveTheme, resetTheme, themePresets, applyTheme, generateThemeFromColor, updatePassword } from '../data/store';
-import { readFileAsBase64, createThumbnail, sha256 } from '../utils/helpers';
+import { getData, saveData, resetData, resetAllData, isCustomized, getTheme, saveTheme, resetTheme, themePresets, applyTheme, generateThemeFromColor, getCurrentUserId, getCurrentUserEmail, getEffectiveUserId, getActiveDataOwner, setActiveDataOwner, isViewingSharedData, generateInviteCode, getAccountInviteCodes, deleteInviteCode, getSharedMembers, getSharedAccounts, leaveSharedAccount, removeSharedMember, syncToCloud, syncFromCloud, checkCloudConnection } from '../data/store';
+import { readFileAsBase64, createThumbnail } from '../utils/helpers';
+import { uploadFile } from '../data/supabase';
 import './Admin.css';
 
 const TABS = [
@@ -26,8 +27,6 @@ export default function Admin() {
   const [editingAnniversary, setEditingAnniversary] = useState(null);
   const [editingPhoto, setEditingPhoto] = useState(null);
   const [editingTimeline, setEditingTimeline] = useState(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDesc, setNewAlbumDesc] = useState('');
   const [managingAlbum, setManagingAlbum] = useState(null);
@@ -164,6 +163,25 @@ export default function Admin() {
     showMsg(`相册"${name}"已删除`);
   };
 
+  const uploadPhotoFile = async (file) => {
+    // Read as base64 for thumbnail and fallback
+    const base64 = await readFileAsBase64(file);
+    const thumb = await createThumbnail(base64);
+
+    const userId = getEffectiveUserId();
+
+    // Try uploading to Supabase Storage
+    try {
+      const url = await uploadFile(userId, file.name, base64);
+      if (url) {
+        return { src: url, thumb, uploaded: true };
+      }
+    } catch {
+      // Upload failed, use base64 as fallback
+    }
+    return { src: base64, thumb, uploaded: false };
+  };
+
   const handleBatchImport = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -174,15 +192,16 @@ export default function Admin() {
 
     let maxId = photos.reduce((max, p) => Math.max(max, p.id || 0), 0);
     let completed = 0;
+    let cloudCount = 0;
 
     const results = await Promise.allSettled(
       Array.from(files).map(async (file) => {
         try {
-          const base64 = await readFileAsBase64(file);
-          const thumb = await createThumbnail(base64);
+          const { src, thumb, uploaded } = await uploadPhotoFile(file);
+          if (uploaded) cloudCount++;
           completed++;
           setBatchImporting({ current: completed, total });
-          return { src: base64, thumb, caption: file.name.replace(/\.[^.]+$/, ''), note: '', album };
+          return { src, thumb, caption: file.name.replace(/\.[^.]+$/, ''), note: '', album };
         } catch (err) {
           completed++;
           setBatchImporting({ current: completed, total });
@@ -206,10 +225,11 @@ export default function Admin() {
     }
 
     setBatchImporting(null);
+    const cloudMsg = cloudCount > 0 ? `（${cloudCount} 张上传到云端）` : '';
     if (failed > 0) {
-      showMsg(`导入完成：成功 ${newPhotos.length} 张，失败 ${failed} 张`);
+      showMsg(`导入完成：成功 ${newPhotos.length} 张${cloudMsg}，失败 ${failed} 张`);
     } else {
-      showMsg(`成功导入 ${newPhotos.length} 张照片到"${album}"`);
+      showMsg(`成功导入 ${newPhotos.length} 张照片到"${album}"${cloudMsg}`);
     }
     e.target.value = '';
   };
@@ -249,26 +269,6 @@ export default function Admin() {
     showMsg('设置已保存');
   };
 
-  const handlePasswordChange = async () => {
-    if (!newPassword.trim()) {
-      showMsg('请输入新密码');
-      return;
-    }
-    if (newPassword.length < 6) {
-      showMsg('密码至少需要6位');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      showMsg('两次输入的密码不一致');
-      return;
-    }
-    const hash = await sha256(newPassword.trim());
-    updatePassword(hash);
-    setNewPassword('');
-    setConfirmPassword('');
-    showMsg('密码已更新');
-  };
-
   const handleResetTab = () => {
     if (activeTab === 'anniversaries') { resetData('anniversaries'); setData(getData('anniversaries')); }
     if (activeTab === 'photos') { resetData('galleryPhotos'); setPhotos(getData('galleryPhotos')); }
@@ -296,12 +296,224 @@ export default function Admin() {
     showMsg('自定义主题已应用');
   };
 
+  // Data export
+  const handleExportData = () => {
+    const account = getCurrentUserEmail() || getCurrentUserId();
+    const exportData = {
+      accountName: account,
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      data: {
+        coupleNames: getData('coupleNames'),
+        startDate: getData('startDate'),
+        anniversaries: getData('anniversaries'),
+        timelineEvents: getData('timelineEvents'),
+        galleryPhotos: getData('galleryPhotos'),
+        albumMeta: getData('albumMeta'),
+      },
+      theme: getTheme(),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `couple-backup-${account}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showMsg('数据已导出');
+  };
+
+  // Data import
+  const handleImportData = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('读取失败'));
+        reader.readAsText(file);
+      });
+
+      const imported = JSON.parse(text);
+
+      if (!imported.data || !imported.version) {
+        showMsg('无效的备份文件格式');
+        return;
+      }
+
+      if (!confirm(
+        `确定要导入此备份数据吗？\n\n` +
+        `备份时间：${imported.exportedAt || '未知'}\n` +
+        `账户：${imported.accountName || '未知'}\n\n` +
+        `当前数据将被覆盖，此操作不可撤销。`
+      )) {
+        e.target.value = '';
+        return;
+      }
+
+      const d = imported.data;
+      if (d.coupleNames) saveData('coupleNames', d.coupleNames);
+      if (d.startDate) saveData('startDate', d.startDate);
+      if (d.anniversaries) saveData('anniversaries', d.anniversaries);
+      if (d.timelineEvents) saveData('timelineEvents', d.timelineEvents);
+      if (d.galleryPhotos) saveData('galleryPhotos', d.galleryPhotos);
+      if (d.albumMeta) saveData('albumMeta', d.albumMeta);
+      if (imported.theme) {
+        saveTheme(imported.theme);
+        setCurrentTheme(imported.theme);
+        applyTheme();
+      }
+
+      // Refresh all states
+      setData(getData('anniversaries'));
+      setPhotos(getData('galleryPhotos'));
+      setTimeline(getData('timelineEvents'));
+      setNames(getData('coupleNames'));
+      setStartDt(getData('startDate'));
+      setAlbumMeta(getData('albumMeta'));
+
+      showMsg('数据导入成功！');
+    } catch (err) {
+      showMsg('导入失败：' + (err.message || '文件格式错误'));
+    }
+
+    e.target.value = '';
+  };
+
+  // Invite codes
+  const [inviteCodes, setInviteCodes] = useState([]);
+  const [sharedMembers, setSharedMembers] = useState([]);
+  const [sharedAccounts, setSharedAccounts] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const codes = await getAccountInviteCodes();
+      setInviteCodes(codes);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (activeTab === 'settings') {
+        const members = await getSharedMembers();
+        setSharedMembers(members);
+        const accounts = await getSharedAccounts();
+        setSharedAccounts(accounts);
+      }
+    })();
+  }, [activeTab]);
+
+  const loadSharedData = async () => {
+    const members = await getSharedMembers();
+    setSharedMembers(members);
+    const accounts = await getSharedAccounts();
+    setSharedAccounts(accounts);
+  };
+
+  const loadInviteCodes = async () => {
+    const codes = await getAccountInviteCodes();
+    setInviteCodes(codes);
+  };
+
+  const handleGenerateInvite = async () => {
+    const code = await generateInviteCode();
+    if (code) {
+      await loadInviteCodes();
+      showMsg(`邀请码已生成：${code}`);
+    }
+  };
+
+  const handleDeleteInvite = async (code) => {
+    if (confirm(`确定删除邀请码 ${code}？删除后将无法使用。`)) {
+      await deleteInviteCode(code);
+      await loadInviteCodes();
+      showMsg('邀请码已删除');
+    }
+  };
+
+  const handleCopyInvite = (code) => {
+    navigator.clipboard.writeText(code).then(() => {
+      showMsg('邀请码已复制到剪贴板');
+    }).catch(() => {
+      showMsg('复制失败，请手动复制：' + code);
+    });
+  };
+
+  // Cloud sync
+  const [cloudStatus, setCloudStatus] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const checkCloud = async () => {
+    const status = await checkCloudConnection();
+    setCloudStatus(status);
+    if (status.connected && status.hasData) {
+      showMsg('云端连接正常，已有数据');
+    } else if (status.connected) {
+      showMsg('云端连接正常，暂无数据');
+    } else {
+      showMsg(status.message || '云端未连接');
+    }
+  };
+
+  const handleSyncToCloud = async () => {
+    setSyncing(true);
+    const result = await syncToCloud();
+    setSyncing(false);
+    if (result.success) {
+      showMsg(`已上传 ${result.uploaded} 项数据到云端`);
+    } else {
+      showMsg(result.message || '同步失败');
+    }
+  };
+
+  const handleSyncFromCloud = async () => {
+    if (!confirm('从云端拉取数据将覆盖本地数据，确定继续？')) return;
+    setSyncing(true);
+    const result = await syncFromCloud();
+    setSyncing(false);
+    if (result.success) {
+      // Refresh all local state
+      setData(getData('anniversaries'));
+      setPhotos(getData('galleryPhotos'));
+      setTimeline(getData('timelineEvents'));
+      setNames(getData('coupleNames'));
+      setStartDt(getData('startDate'));
+      setAlbumMeta(getData('albumMeta'));
+      const theme = getTheme();
+      setCurrentTheme(theme);
+      applyTheme();
+      showMsg(`已从云端同步 ${result.imported} 项数据`);
+    } else {
+      showMsg(result.message || '同步失败');
+    }
+  };
+
   return (
     <div className="admin-page">
       <div className="admin-header">
         <button className="admin-back" onClick={() => navigate('/')}>← 返回网站</button>
         <h2 className="admin-title">内容管理</h2>
       </div>
+
+      {isViewingSharedData() && (
+        <div className="admin-shared-banner">
+          <span>🔗 正在查看共享账户的数据</span>
+          <button onClick={() => { setActiveDataOwner(null); window.location.reload(); }}>
+            切换回我的账户
+          </button>
+        </div>
+      )}
+
+      {sharedAccounts.length > 0 && !isViewingSharedData() && (
+        <div className="admin-shared-banner" style={{ background: '#e8f5e9', border: '1px solid #a5d6a7' }}>
+          <span>👥 你已加入 {sharedAccounts.length} 个共享账户</span>
+        </div>
+      )}
 
       <div className="admin-tabs">
         {TABS.map((tab) => {
@@ -548,25 +760,6 @@ export default function Admin() {
             </div>
 
             <div className="admin-form-group">
-              <h3>修改密码</h3>
-              <label>新密码（至少6位）</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="输入新密码"
-              />
-              <label>确认新密码</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="再次输入新密码"
-              />
-              <button className="admin-btn admin-btn-primary" onClick={handlePasswordChange}>更新密码</button>
-            </div>
-
-            <div className="admin-form-group">
               <h3>主题颜色</h3>
               <div className="admin-theme-presets">
                 {Object.entries(themePresets).map(([key, preset]) => (
@@ -605,6 +798,159 @@ export default function Admin() {
               >
                 恢复默认主题
               </button>
+            </div>
+
+            <div className="admin-form-group">
+              <h3>云端同步</h3>
+              <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '0.8rem' }}>
+                将数据同步到 Supabase 云端存储，实现多设备共享数据。
+                {cloudStatus && (
+                  <span style={{ color: cloudStatus.connected ? '#43a047' : '#e53935', marginLeft: '0.5rem' }}>
+                    {cloudStatus.connected ? '● 已连接' : '○ 未连接'}
+                  </span>
+                )}
+              </p>
+              <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+                <button className="admin-btn" onClick={checkCloud}>
+                  检查连接
+                </button>
+                <button className="admin-btn admin-btn-primary" onClick={handleSyncToCloud} disabled={syncing}>
+                  {syncing ? '同步中...' : '↑ 上传到云端'}
+                </button>
+                <button className="admin-btn" onClick={handleSyncFromCloud} disabled={syncing}>
+                  ↓ 从云端拉取
+                </button>
+              </div>
+            </div>
+
+            <div className="admin-form-group">
+              <h3>数据备份</h3>
+              <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '0.8rem' }}>
+                导出所有数据为JSON文件，可用于备份或迁移到其他设备。导入将覆盖当前数据。
+              </p>
+              <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+                <button className="admin-btn admin-btn-primary" onClick={handleExportData}>
+                  ↓ 导出数据
+                </button>
+                <label className="admin-btn admin-btn-primary" style={{ cursor: 'pointer' }}>
+                  ↑ 导入数据
+                  <input
+                    type="file"
+                    accept=".json"
+                    style={{ display: 'none' }}
+                    onChange={handleImportData}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="admin-form-group">
+              <h3>邀请码共享</h3>
+              <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '0.8rem' }}>
+                生成邀请码，让对方在登录页面输入邀请码即可加入你的账户，一起维护属于你们的回忆。
+              </p>
+              <button className="admin-btn admin-btn-primary" onClick={handleGenerateInvite}>
+                + 生成邀请码
+              </button>
+
+              {inviteCodes.length > 0 && (
+                <div className="admin-list" style={{ marginTop: '1rem' }}>
+                  {inviteCodes.map((entry) => (
+                    <div key={entry.code} className="admin-item">
+                      <div className="admin-item-info" style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                        <strong>{entry.code}</strong>
+                        <span className="admin-item-date">
+                          创建于 {new Date(entry.createdAt).toLocaleDateString('zh-CN')}
+                        </span>
+                      </div>
+                      <div className="admin-item-actions">
+                        <button onClick={() => handleCopyInvite(entry.code)}>复制</button>
+                        <button className="danger" onClick={() => handleDeleteInvite(entry.code)}>删除</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="admin-form-group">
+              <h3>共享成员管理</h3>
+              <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '0.8rem' }}>
+                管理可访问此账户数据的共享成员，或切换到已加入的共享账户。
+              </p>
+
+              {/* Shared accounts the user has joined */}
+              {sharedAccounts.length > 0 && (
+                <div style={{ marginBottom: '1.2rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>我加入的共享账户</h4>
+                  {sharedAccounts.map((acc) => (
+                    <div key={acc.owner_id} className="admin-item" style={{ marginBottom: '0.4rem' }}>
+                      <div className="admin-item-info">
+                        <span className="admin-item-icon">👤</span>
+                        <div>
+                          <strong style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{acc.owner_id}</strong>
+                          <span className="admin-item-date">
+                            加入于 {new Date(acc.created_at).toLocaleDateString('zh-CN')}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="admin-item-actions">
+                        <button onClick={async () => {
+                          setActiveDataOwner(acc.owner_id);
+                          const result = await syncFromCloud();
+                          showMsg(result.success ? `已切换到共享账户，同步了 ${result.imported} 项数据` : '已切换到共享账户');
+                          setTimeout(() => window.location.reload(), 800);
+                        }}>
+                          查看数据
+                        </button>
+                        <button className="danger" onClick={async () => {
+                          if (confirm('确定离开此共享账户？')) {
+                            await leaveSharedAccount(acc.owner_id);
+                            await loadSharedData();
+                            showMsg('已离开共享账户');
+                          }
+                        }}>
+                          离开
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Members of current account (only shown to owner, not shared viewers) */}
+              {!isViewingSharedData() && (
+                <>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>此账户的共享成员</h4>
+                  {sharedMembers.length === 0 && (
+                    <p style={{ fontSize: '0.85rem', color: '#999' }}>暂无共享成员，生成邀请码让对方加入</p>
+                  )}
+                  {sharedMembers.map((member) => (
+                    <div key={member.member_id} className="admin-item" style={{ marginBottom: '0.4rem' }}>
+                      <div className="admin-item-info">
+                        <span className="admin-item-icon">👤</span>
+                        <div>
+                          <strong style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{member.member_id}</strong>
+                          <span className="admin-item-date">
+                            加入于 {new Date(member.created_at).toLocaleDateString('zh-CN')}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="admin-item-actions">
+                        <button className="danger" onClick={async () => {
+                          if (confirm('确定移除此共享成员？')) {
+                            await removeSharedMember(member.member_id);
+                            await loadSharedData();
+                            showMsg('已移除共享成员');
+                          }
+                        }}>
+                          移除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
 
             <div className="admin-form-group admin-danger-zone">
@@ -665,7 +1011,14 @@ export default function Admin() {
                     if (!file) return;
                     try {
                       const base64 = await readFileAsBase64(file);
-                      setEditingPhoto({ ...editingPhoto, src: base64, thumb: base64 });
+                      const userId = getEffectiveUserId();
+                      const url = await uploadFile(userId, file.name, base64);
+                      if (url) {
+                        setEditingPhoto({ ...editingPhoto, src: url, thumb: url });
+                        showMsg('照片已上传到云端');
+                      } else {
+                        setEditingPhoto({ ...editingPhoto, src: base64, thumb: base64 });
+                      }
                     } catch {
                       showMsg('读取文件失败');
                     }
@@ -741,7 +1094,13 @@ export default function Admin() {
                     if (!file) return;
                     try {
                       const base64 = await readFileAsBase64(file);
-                      setEditingTimeline({ ...editingTimeline, image: base64 });
+                      const userId = getEffectiveUserId();
+                      const url = await uploadFile(userId, file.name, base64);
+                      if (url) {
+                        setEditingTimeline({ ...editingTimeline, image: url });
+                      } else {
+                        setEditingTimeline({ ...editingTimeline, image: base64 });
+                      }
                     } catch {
                       showMsg('读取文件失败');
                     }

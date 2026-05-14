@@ -18,20 +18,20 @@
   border-radius: 20px;
   padding: 2rem 1.5rem;
   text-align: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1.2), box-shadow 0.4s ease;
   position: relative;
   overflow: hidden;
 }
 
 .countdown-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 12px 36px rgba(var(--theme-primary-rgb), 0.2);
+  box-shadow: 0 14px 38px rgba(var(--theme-primary-rgb), 0.14);
 }
 
 .countdown-next {
-  border: 2px solid var(--theme-primary);
-  box-shadow: 0 4px 24px rgba(var(--theme-primary-rgb), 0.15);
+  border: 2px solid rgba(var(--theme-primary-rgb), 0.3);
+  box-shadow: 0 4px 24px rgba(var(--theme-primary-rgb), 0.1);
 }
 
 .countdown-next::before {
@@ -40,8 +40,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--theme-primary-mid2), var(--theme-primary), var(--theme-primary-mid2));
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--theme-primary), transparent);
 }
 
 .countdown-badge {
@@ -50,22 +50,27 @@
   right: 1rem;
   background: var(--theme-badge-bg);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .countdown-icon {
   font-size: 2.5rem;
   display: block;
   margin-bottom: 0.8rem;
+  transition: transform 0.3s ease;
+}
+
+.countdown-card:hover .countdown-icon {
+  transform: scale(1.1);
 }
 
 .countdown-name {
-  font-size: 1.05rem;
-  color: #555;
+  font-size: 1rem;
+  color: #666;
   font-weight: 600;
   margin: 0 0 1rem;
 }
@@ -79,18 +84,19 @@
   font-weight: 800;
   color: var(--theme-primary-dark);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .countdown-unit {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--theme-primary);
-  margin-left: 0.2rem;
+  margin-left: 0.15rem;
   font-weight: 600;
 }
 
 .countdown-date {
-  font-size: 0.85rem;
-  color: #aaa;
+  font-size: 0.82rem;
+  color: #bbb;
   margin: 0;
 }
 
@@ -102,7 +108,7 @@
   display: flex;
   gap: 0.25rem;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.3s ease;
   z-index: 2;
 }
 
@@ -122,23 +128,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .countdown-edit-btn {
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .countdown-edit-btn:hover {
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.55);
+  transform: scale(1.1);
 }
 
 .countdown-delete-btn {
-  background: rgba(229, 57, 53, 0.5);
+  background: rgba(229, 57, 53, 0.45);
 }
 
 .countdown-delete-btn:hover {
-  background: rgba(229, 57, 53, 0.8);
+  background: rgba(229, 57, 53, 0.75);
+  transform: scale(1.1);
 }
 
 .countdown-next .countdown-badge {
@@ -147,7 +155,7 @@
 
 /* Add card */
 .countdown-card-add {
-  border: 2px dashed var(--theme-primary-mid);
+  border: 2px dashed rgba(var(--theme-primary-rgb), 0.2);
   background: transparent;
   box-shadow: none;
   cursor: pointer;
@@ -155,15 +163,20 @@
 
 .countdown-card-add:hover {
   border-color: var(--theme-primary);
-  background: #fff5f7;
+  background: rgba(var(--theme-primary-rgb), 0.03);
 }
 
 .countdown-add-icon {
   font-size: 2.5rem;
-  color: var(--theme-primary-dark);
+  color: rgba(var(--theme-primary-rgb), 0.25);
   display: block;
   margin-bottom: 0.8rem;
   font-weight: 300;
+  transition: color 0.3s ease;
+}
+
+.countdown-card-add:hover .countdown-add-icon {
+  color: var(--theme-primary);
 }
 
 @media (max-width: 500px) {
