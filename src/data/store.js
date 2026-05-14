@@ -143,9 +143,11 @@ export function isCustomized(key) {
 // ============================================================
 
 async function saveDataToCloud(key, value) {
-  const { saveData: cloudSave } = await import('./supabase');
-  const uid = getEffectiveUserId();
-  if (uid) cloudSave(uid, key, value);
+  try {
+    const { saveData: cloudSave } = await import('./supabase');
+    const uid = getEffectiveUserId();
+    if (uid) await cloudSave(uid, key, value);
+  } catch {}
 }
 
 export async function syncToCloud() {
@@ -407,11 +409,11 @@ export function saveTheme(theme) {
   const sk = storageKey('theme');
   if (sk) {
     localStorage.setItem(sk, JSON.stringify(theme));
-    // Sync to cloud
+    // Sync to cloud (fire-and-forget is fine for theme, but await for reliability)
     const uid = getEffectiveUserId();
     if (uid) {
       import('./supabase').then(({ saveData: cloudSave }) => {
-        cloudSave(uid, 'theme', theme);
+        cloudSave(uid, 'theme', theme).catch(() => {});
       });
     }
   }

@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Hearts from './Hearts';
-import { getData, isLoggedIn, getCurrentUserEmail, cloudSignOut, isViewingSharedData, setActiveDataOwner } from '../data/store';
+import { getData, isLoggedIn, getCurrentUserEmail, cloudSignOut, isViewingSharedData, setActiveDataOwner, syncFromCloud } from '../data/store';
 import './Layout.css';
 
 export default function Layout({ children }) {
@@ -9,6 +10,16 @@ export default function Layout({ children }) {
   const names = getData('coupleNames');
   const userEmail = getCurrentUserEmail();
   const loggedIn = isLoggedIn();
+  const [dataKey, setDataKey] = useState(0);
+
+  // Auto-sync from cloud on mount and navigation (keeps data fresh across devices)
+  useEffect(() => {
+    if (!loggedIn) return;
+    syncFromCloud().then(() => {
+      // Force children to re-mount with fresh data from localStorage
+      setDataKey(k => k + 1);
+    }).catch(() => {});
+  }, [loggedIn]);
 
   const handleLogout = async () => {
     await cloudSignOut();
@@ -26,7 +37,7 @@ export default function Layout({ children }) {
         <Link to="/admin" className={location.pathname === '/admin' ? 'nav-active' : ''} style={{ color: 'var(--theme-primary-dark)' }}>管理</Link>
       </nav>
 
-      <main>
+      <main key={dataKey}>
         {children}
       </main>
 
