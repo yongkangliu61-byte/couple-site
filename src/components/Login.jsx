@@ -1,46 +1,79 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminPasswordHash } from '../data/config';
-import { setLoggedIn, getData, isAccountExists, createAccount } from '../data/store';
+import {
+  getAccounts, getAccountInfo, verifyPassword, createNewAccount,
+  loginToAccount, isAccountExists, getData,
+} from '../data/store';
+import { sha256 } from '../utils/helpers';
 import './Login.css';
-
-async function sha256(message) {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function getValidHash() {
-  return localStorage.getItem('couple_passwordHash') || adminPasswordHash;
-}
 
 export default function Login() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState('select'); // 'select' | 'login' | 'register'
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [boyName, setBoyName] = useState('');
+  const [girlName, setGirlName] = useState('');
+  const [startDate, setStartDate] = useState('2024-01-01');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const names = getData('coupleNames');
+
+  // 页面显示的情侣名字：登录模式用选中账户的，注册模式用当前输入的，选择模式不显示
+  const displayNames = mode === 'login' && selectedAccount
+    ? (getAccountInfo(selectedAccount).coupleNames)
+    : mode === 'register'
+    ? { boy: boyName || '?', girl: girlName || '?' }
+    : getData('coupleNames');
 
   useEffect(() => {
-    if (!isAccountExists()) {
+    const list = getAccounts();
+    setAccounts(list);
+    if (list.length === 0) {
       setMode('register');
     }
   }, []);
 
+  const clearFields = () => {
+    setPassword('');
+    setConfirmPassword('');
+    setError('');
+    setAccountName('');
+    setBoyName('');
+    setGirlName('');
+    setStartDate('2024-01-01');
+  };
+
+  const goSelect = () => {
+    const list = getAccounts();
+    setAccounts(list);
+    setSelectedAccount('');
+    setMode('select');
+    clearFields();
+  };
+
+  const selectAccount = (name) => {
+    setSelectedAccount(name);
+    setMode('login');
+    setError('');
+  };
+
+  const goRegister = () => {
+    setMode('register');
+    clearFields();
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!password.trim()) return;
-
     setLoading(true);
     setError('');
-
     try {
       const hash = await sha256(password.trim());
-      if (hash === getValidHash()) {
-        setLoggedIn();
+      if (verifyPassword(selectedAccount, hash)) {
+        loginToAccount(selectedAccount);
         navigate('/');
       } else {
         setError('密码错误，请重试');
@@ -49,55 +82,41 @@ export default function Login() {
     } catch {
       setError('验证失败，请重试');
     }
-
     setLoading(false);
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!password.trim()) {
-      setError('请输入密码');
-      return;
-    }
-    if (password.length < 6) {
-      setError('密码至少需要6位');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('两次输入的密码不一致');
-      return;
-    }
+    if (!accountName.trim()) { setError('请输入账户名'); return; }
+    if (!boyName.trim()) { setError('请输入男生名字'); return; }
+    if (!girlName.trim()) { setError('请输入女生名字'); return; }
+    if (!password.trim()) { setError('请输入密码'); return; }
+    if (password.length < 6) { setError('密码至少需要6位'); return; }
+    if (password !== confirmPassword) { setError('两次输入的密码不一致'); return; }
 
     setLoading(true);
     setError('');
-
     try {
       const hash = await sha256(password.trim());
-      createAccount(hash);
-      setLoggedIn();
-      onLogin();
+      const ok = createNewAccount(
+        accountName.trim(),
+        hash,
+        { boy: boyName.trim(), girl: girlName.trim() },
+        startDate,
+      );
+      if (!ok) {
+        setError('账户名已存在，请换一个');
+        setLoading(false);
+        return;
+      }
+      navigate('/');
     } catch {
       setError('创建失败，请重试');
     }
-
     setLoading(false);
   };
 
-  const switchToLogin = () => {
-    setMode('login');
-    setPassword('');
-    setConfirmPassword('');
-    setError('');
-  };
-
-  const switchToRegister = () => {
-    setMode('register');
-    setPassword('');
-    setConfirmPassword('');
-    setError('');
-  };
-
-  const accountExists = isAccountExists();
+  const accountExists = accounts.length > 0;
 
   return (
     <div className="login-page">
@@ -113,27 +132,59 @@ export default function Login() {
               fontSize: `${14 + Math.random() * 20}px`,
               opacity: 0.15 + Math.random() * 0.2,
             }}
-          >
-            ❤
-          </span>
+          >❤</span>
         ))}
       </div>
 
       <div className="login-card">
-        <div className="login-header">
-          <div className="login-avatars">
-            <span className="login-avatar-icon">👦</span>
-            <span className="login-heart-icon">❤</span>
-            <span className="login-avatar-icon">👧</span>
-          </div>
-          <h1 className="login-title">
-            {names.boy} & {names.girl}
-          </h1>
-          <p className="login-subtitle">我们的爱情纪念册</p>
-        </div>
-
-        {mode === 'login' ? (
+        {/* ===== 选择账户 ===== */}
+        {mode === 'select' && (
           <>
+            <div className="login-header">
+              <div className="login-avatars">
+                <span className="login-avatar-icon">💕</span>
+              </div>
+              <h1 className="login-title">选择账户</h1>
+              <p className="login-subtitle">选择你的账户进入爱情纪念册</p>
+            </div>
+            <div className="login-account-list">
+              {accounts.map((name) => {
+                const info = getAccountInfo(name);
+                return (
+                  <button
+                    key={name}
+                    className="login-account-card"
+                    onClick={() => selectAccount(name)}
+                  >
+                    <span className="login-account-name">{name}</span>
+                    <span className="login-account-couple">
+                      {info.coupleNames.boy} & {info.coupleNames.girl}
+                    </span>
+                  </button>
+                );
+              })}
+              <button className="login-account-card login-account-new" onClick={goRegister}>
+                <span className="login-account-new-icon">+</span>
+                <span className="login-account-new-text">创建新账户</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ===== 登录 ===== */}
+        {mode === 'login' && (
+          <>
+            <div className="login-header">
+              <div className="login-avatars">
+                <span className="login-avatar-icon">👦</span>
+                <span className="login-heart-icon">❤</span>
+                <span className="login-avatar-icon">👧</span>
+              </div>
+              <h1 className="login-title">
+                {displayNames.boy} & {displayNames.girl}
+              </h1>
+              <p className="login-subtitle login-account-badge">{selectedAccount}</p>
+            </div>
             <form className="login-form" onSubmit={handleLogin}>
               <div className="login-input-group">
                 <span className="login-input-icon">🔒</span>
@@ -151,17 +202,74 @@ export default function Login() {
                 {loading ? '验证中...' : '进入我们的世界'}
               </button>
             </form>
-            {!accountExists && (
-              <p className="login-switch">
-                还没有账户？
-                <button onClick={switchToRegister} className="login-switch-btn">创建账户</button>
-              </p>
-            )}
+            <p className="login-switch">
+              <button onClick={goSelect} className="login-switch-btn">← 切换账户</button>
+            </p>
           </>
-        ) : (
+        )}
+
+        {/* ===== 注册 ===== */}
+        {mode === 'register' && (
           <>
+            <div className="login-header">
+              {boyName && girlName ? (
+                <div className="login-avatars">
+                  <span className="login-avatar-icon">👦</span>
+                  <span className="login-heart-icon">❤</span>
+                  <span className="login-avatar-icon">👧</span>
+                </div>
+              ) : (
+                <div className="login-avatars">
+                  <span className="login-avatar-icon">💝</span>
+                </div>
+              )}
+              <h1 className="login-title">
+                {displayNames.boy} & {displayNames.girl}
+              </h1>
+              <p className="login-subtitle">
+                {accountExists ? '创建属于你们的专属账户' : '首次访问，创建专属账户'}
+              </p>
+            </div>
             <form className="login-form" onSubmit={handleRegister}>
-              <p className="login-register-hint">首次访问，请设置你的专属密码</p>
+              <div className="login-input-group">
+                <span className="login-input-icon">👤</span>
+                <input
+                  className="login-input"
+                  placeholder="账户名（唯一标识）"
+                  value={accountName}
+                  onChange={(e) => { setAccountName(e.target.value); setError(''); }}
+                  autoFocus
+                />
+              </div>
+              <div className="login-input-row">
+                <div className="login-input-group login-input-half">
+                  <span className="login-input-icon">👦</span>
+                  <input
+                    className="login-input"
+                    placeholder="男生名字"
+                    value={boyName}
+                    onChange={(e) => setBoyName(e.target.value)}
+                  />
+                </div>
+                <div className="login-input-group login-input-half">
+                  <span className="login-input-icon">👧</span>
+                  <input
+                    className="login-input"
+                    placeholder="女生名字"
+                    value={girlName}
+                    onChange={(e) => setGirlName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="login-input-group">
+                <span className="login-input-icon">📅</span>
+                <input
+                  type="date"
+                  className="login-input"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
               <div className="login-input-group">
                 <span className="login-input-icon">🔑</span>
                 <input
@@ -170,7 +278,6 @@ export default function Login() {
                   placeholder="设置密码（至少6位）"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                  autoFocus
                 />
               </div>
               <div className="login-input-group">
@@ -190,8 +297,7 @@ export default function Login() {
             </form>
             {accountExists && (
               <p className="login-switch">
-                已有账户？
-                <button onClick={switchToLogin} className="login-switch-btn">返回登录</button>
+                <button onClick={goSelect} className="login-switch-btn">← 返回选择账户</button>
               </p>
             )}
           </>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getData, saveData, resetData, resetAllData, isCustomized, getTheme, saveTheme, resetTheme, themePresets, applyTheme, generateThemeFromColor } from '../data/store';
+import { getData, saveData, resetData, resetAllData, isCustomized, getTheme, saveTheme, resetTheme, themePresets, applyTheme, generateThemeFromColor, updatePassword } from '../data/store';
 import { readFileAsBase64, createThumbnail, sha256 } from '../utils/helpers';
 import './Admin.css';
 
@@ -263,7 +263,7 @@ export default function Admin() {
       return;
     }
     const hash = await sha256(newPassword.trim());
-    localStorage.setItem('couple_passwordHash', hash);
+    updatePassword(hash);
     setNewPassword('');
     setConfirmPassword('');
     showMsg('密码已更新');

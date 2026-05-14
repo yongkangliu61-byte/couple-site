@@ -1,12 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Hearts from './Hearts';
-import { getData, logout, isLoggedIn } from '../data/store';
+import { getData, logout, isLoggedIn, getCurrentAccount } from '../data/store';
 import './Layout.css';
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const names = getData('coupleNames');
+  const accountName = getCurrentAccount();
   const loggedIn = isLoggedIn();
 
   const handleLogout = () => {
@@ -35,19 +36,25 @@ export default function Layout({ children }) {
         </p>
         <p style={{ marginTop: '0.3rem' }}>Forever & Always</p>
         {loggedIn && (
-          <button
-            onClick={handleLogout}
-            style={{
-              marginTop: '0.8rem',
-              background: 'none',
-              border: 'none',
-              color: '#ccc',
-              cursor: 'pointer',
-              fontSize: '0.8rem',
-            }}
-          >
-            退出登录
-          </button>
+          <div style={{ marginTop: '0.6rem' }}>
+            {accountName && (
+              <span style={{ color: '#bbb', fontSize: '0.78rem', marginRight: '0.8rem' }}>
+                @{accountName}
+              </span>
+            )}
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#ccc',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+              }}
+            >
+              退出登录
+            </button>
+          </div>
         )}
       </footer>
     </>

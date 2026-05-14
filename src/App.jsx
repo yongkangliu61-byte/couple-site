@@ -7,7 +7,7 @@ import Countdown from './components/Countdown';
 import Login from './components/Login';
 import Admin from './components/Admin';
 import Layout from './components/Layout';
-import { isLoggedIn, applyTheme } from './data/store';
+import { isLoggedIn, applyTheme, tryMigrateOldData } from './data/store';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -19,6 +19,7 @@ function ProtectedRoute({ children }) {
 
 function App() {
   useEffect(() => {
+    tryMigrateOldData();
     applyTheme();
   }, []);
 

@@ -1,5 +1,5 @@
 // ============================================================
-// 数据管理 - 合并 config 默认值与 localStorage 用户数据
+// 数据管理 - 多账户支持 + config 默认值合并
 // ============================================================
 
 import {
@@ -25,28 +25,113 @@ const DEFAULTS = {
 
 const STORE_KEYS = ['coupleNames', 'startDate', 'anniversaries', 'timelineEvents', 'galleryPhotos', 'albumMeta'];
 
+// ============================================================
+// 账户注册表
+// ============================================================
+
+export function getAccounts() {
+  try {
+    const stored = localStorage.getItem('couple_accounts');
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function saveAccounts(list) {
+  localStorage.setItem('couple_accounts', JSON.stringify(list));
+}
+
+// ============================================================
+// 当前账户
+// ============================================================
+
+export function getCurrentAccount() {
+  return sessionStorage.getItem('couple_current_account') || '';
+}
+
+export function loginToAccount(accountName) {
+  sessionStorage.setItem('couple_current_account', accountName);
+  sessionStorage.setItem('couple_auth', '1');
+}
+
+export function isLoggedIn() {
+  return sessionStorage.getItem('couple_auth') === '1' && !!getCurrentAccount();
+}
+
+export function logout() {
+  sessionStorage.removeItem('couple_auth');
+  sessionStorage.removeItem('couple_current_account');
+}
+
+// ============================================================
+// 账户认证
+// ============================================================
+
+export function isAccountExists() {
+  return getAccounts().length > 0;
+}
+
+export function getAccountAuth(accountName) {
+  try {
+    const stored = localStorage.getItem(`couple_${accountName}_auth`);
+    return stored ? JSON.parse(stored) : null;
+  } catch { return null; }
+}
+
+function saveAccountAuth(accountName, data) {
+  localStorage.setItem(`couple_${accountName}_auth`, JSON.stringify(data));
+}
+
+export function verifyPassword(accountName, passwordHash) {
+  const auth = getAccountAuth(accountName);
+  return auth && auth.passwordHash === passwordHash;
+}
+
+export function updatePassword(passwordHash) {
+  const account = getCurrentAccount();
+  if (!account) return;
+  saveAccountAuth(account, { passwordHash });
+}
+
+// ============================================================
+// 创建账户
+// ============================================================
+
+export function createNewAccount(accountName, passwordHash, coupleNames, startDate) {
+  const accounts = getAccounts();
+  if (accounts.includes(accountName)) return false;
+  saveAccountAuth(accountName, { passwordHash });
+  const accKey = accountName;
+  localStorage.setItem(`couple_${accKey}_coupleNames`, JSON.stringify(coupleNames));
+  localStorage.setItem(`couple_${accKey}_startDate`, JSON.stringify(startDate));
+  accounts.push(accountName);
+  saveAccounts(accounts);
+  loginToAccount(accountName);
+  return true;
+}
+
+// ============================================================
+// 数据存取（按当前账户隔离）
+// ============================================================
+
+function storageKey(key) {
+  const account = getCurrentAccount();
+  return account ? `couple_${account}_${key}` : `couple_${key}`;
+}
+
 export function getData(key) {
   try {
-    const stored = localStorage.getItem(`couple_${key}`);
+    const stored = localStorage.getItem(storageKey(key));
     if (stored) return JSON.parse(stored);
   } catch {}
   return DEFAULTS[key];
 }
 
 export function saveData(key, data) {
-  localStorage.setItem(`couple_${key}`, JSON.stringify(data));
+  localStorage.setItem(storageKey(key), JSON.stringify(data));
 }
 
 export function resetData(key) {
-  localStorage.removeItem(`couple_${key}`);
-}
-
-export function getAllData() {
-  const result = {};
-  for (const key of STORE_KEYS) {
-    result[key] = getData(key);
-  }
-  return result;
+  localStorage.removeItem(storageKey(key));
 }
 
 export function resetAllData() {
@@ -56,37 +141,71 @@ export function resetAllData() {
 }
 
 export function isCustomized(key) {
-  return localStorage.getItem(`couple_${key}`) !== null;
+  return localStorage.getItem(storageKey(key)) !== null;
 }
 
-// Session management
-export function setLoggedIn() {
-  sessionStorage.setItem('couple_auth', '1');
+// ============================================================
+// 账户信息（用于登录页预览）
+// ============================================================
+
+export function getAccountInfo(accountName) {
+  const prefix = `couple_${accountName}_`;
+  try {
+    const names = localStorage.getItem(`${prefix}coupleNames`);
+    const date = localStorage.getItem(`${prefix}startDate`);
+    return {
+      coupleNames: names ? JSON.parse(names) : defaultCoupleNames,
+      startDate: date ? JSON.parse(date) : defaultStartDate,
+    };
+  } catch {
+    return { coupleNames: defaultCoupleNames, startDate: defaultStartDate };
+  }
 }
 
-export function isLoggedIn() {
-  return sessionStorage.getItem('couple_auth') === '1';
+// ============================================================
+// 旧数据迁移
+// ============================================================
+
+export function tryMigrateOldData() {
+  const accounts = getAccounts();
+  if (accounts.length > 0) return;
+  const oldHash = localStorage.getItem('couple_passwordHash');
+  const oldCreated = localStorage.getItem('couple_account_created');
+  if (!oldHash && !oldCreated) return;
+  const accountName = 'default';
+  saveAccountAuth(accountName, { passwordHash: oldHash || '' });
+  const oldKeys = {
+    coupleNames: localStorage.getItem('couple_coupleNames'),
+    startDate: localStorage.getItem('couple_startDate'),
+    anniversaries: localStorage.getItem('couple_anniversaries'),
+    timelineEvents: localStorage.getItem('couple_timelineEvents'),
+    galleryPhotos: localStorage.getItem('couple_galleryPhotos'),
+    albumMeta: localStorage.getItem('couple_albumMeta'),
+    theme: localStorage.getItem('couple_theme'),
+  };
+  for (const [key, val] of Object.entries(oldKeys)) {
+    if (val) {
+      try {
+        localStorage.setItem(`couple_${accountName}_${key}`, val);
+      } catch {}
+    }
+  }
+  localStorage.removeItem('couple_passwordHash');
+  localStorage.removeItem('couple_account_created');
+  for (const key of STORE_KEYS) {
+    localStorage.removeItem(`couple_${key}`);
+  }
+  localStorage.removeItem('couple_theme');
+  saveAccounts([accountName]);
 }
 
-export function logout() {
-  sessionStorage.removeItem('couple_auth');
-}
+// ============================================================
+// 主题管理（按账户隔离）
+// ============================================================
 
-// Account management
-export function isAccountExists() {
-  return localStorage.getItem('couple_passwordHash') !== null
-    || localStorage.getItem('couple_account_created') !== null;
-}
-
-export function createAccount(passwordHash) {
-  localStorage.setItem('couple_passwordHash', passwordHash);
-  localStorage.setItem('couple_account_created', '1');
-}
-
-// Theme management
 export function getTheme() {
   try {
-    const stored = localStorage.getItem('couple_theme');
+    const stored = localStorage.getItem(storageKey('theme'));
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.type === 'preset' && themePresets[parsed.name]) {
@@ -101,11 +220,11 @@ export function getTheme() {
 }
 
 export function saveTheme(theme) {
-  localStorage.setItem('couple_theme', JSON.stringify(theme));
+  localStorage.setItem(storageKey('theme'), JSON.stringify(theme));
 }
 
 export function resetTheme() {
-  localStorage.removeItem('couple_theme');
+  localStorage.removeItem(storageKey('theme'));
 }
 
 export function getThemeColors(themeName) {
