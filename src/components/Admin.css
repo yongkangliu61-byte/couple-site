@@ -1,0 +1,881 @@
+.admin-page {
+  min-height: 100vh;
+  background: #fafafa;
+  padding-bottom: 3rem;
+}
+
+.admin-header {
+  background: var(--theme-admin-header-bg);
+  padding: 1.2rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.admin-back {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.admin-back:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.admin-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+/* Tabs */
+.admin-tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  padding: 0 1rem;
+  position: sticky;
+  top: 64px;
+  z-index: 9;
+  overflow-x: auto;
+}
+
+.admin-tab {
+  padding: 0.9rem 1.3rem;
+  border: none;
+  background: none;
+  font-size: 0.95rem;
+  color: #888;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+  position: relative;
+}
+
+.admin-tab.active {
+  color: var(--theme-primary-dark);
+  border-bottom-color: var(--theme-primary-dark);
+  font-weight: 600;
+}
+
+.admin-tab-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--theme-primary);
+}
+
+/* Toast */
+.admin-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  z-index: 100;
+  animation: toast-in 0.3s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Content */
+.admin-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.admin-section {
+  animation: fade-in 0.25s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.admin-btn {
+  padding: 0.55rem 1.2rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-btn:hover {
+  background: #f5f5f5;
+}
+
+.admin-btn-primary {
+  background: var(--theme-primary-dark);
+  color: #fff;
+  border-color: var(--theme-primary-dark);
+}
+
+.admin-btn-primary:hover {
+  background: var(--theme-primary-darker);
+}
+
+.admin-btn-reset {
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.admin-btn-reset:hover {
+  color: #e53935;
+  border-color: #e53935;
+}
+
+/* List */
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.admin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  gap: 1rem;
+}
+
+.admin-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-item-info div {
+  min-width: 0;
+}
+
+.admin-item-info strong {
+  display: block;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.admin-item-date {
+  color: #999;
+  font-size: 0.82rem;
+}
+
+.admin-item-desc {
+  display: block;
+  color: #bbb;
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-item-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.admin-item-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.admin-item-actions button {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.15s;
+}
+
+.admin-item-actions button:hover {
+  background: #f5f5f5;
+}
+
+.admin-item-actions button.danger {
+  color: #e53935;
+  border-color: #ffcdd2;
+}
+
+.admin-item-actions button.danger:hover {
+  background: #ffebee;
+}
+
+.admin-empty {
+  text-align: center;
+  color: #ccc;
+  padding: 3rem;
+}
+
+/* Photo grid */
+.admin-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.admin-photo-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-photo-card img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+}
+
+.admin-photo-info {
+  padding: 0.6rem 0.8rem;
+}
+
+.admin-photo-info span {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.4rem;
+}
+
+/* Forms */
+.admin-form-group {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-form-group h3 {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.admin-form-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 0.3rem;
+  margin-top: 0.8rem;
+}
+
+.admin-form-group label:first-of-type {
+  margin-top: 0;
+}
+
+.admin-form-group input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.admin-form-group input:focus {
+  border-color: var(--theme-primary-dark);
+}
+
+.admin-form-group .admin-btn {
+  margin-top: 1rem;
+}
+
+.admin-danger-zone {
+  border: 1px solid #ffcdd2;
+}
+
+.admin-danger-zone h3 {
+  color: #e53935;
+}
+
+.admin-danger-zone p {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+}
+
+/* Modal */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fade-in 0.2s ease;
+}
+
+.admin-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.admin-modal h3 {
+  font-size: 1.15rem;
+  color: #333;
+  margin-bottom: 1.2rem;
+}
+
+.admin-modal label {
+  display: block;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 0.3rem;
+  margin-top: 0.8rem;
+}
+
+.admin-modal input,
+.admin-modal textarea {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.admin-modal input:focus,
+.admin-modal textarea:focus {
+  border-color: var(--theme-primary-dark);
+}
+
+.admin-modal-actions {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+  justify-content: flex-end;
+}
+
+/* Icon picker */
+.admin-icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.admin-icon-btn {
+  width: 38px;
+  height: 38px;
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.admin-icon-btn:hover {
+  border-color: var(--theme-primary-dark);
+  transform: scale(1.1);
+}
+
+.admin-icon-btn.selected {
+  border-color: var(--theme-primary-dark);
+  background: var(--theme-primary-light);
+}
+
+/* Photo preview in modal */
+.admin-photo-preview {
+  margin-top: 0.8rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-photo-preview img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: #f5f5f5;
+}
+
+/* File upload */
+.admin-file-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.admin-file-or {
+  font-size: 0.8rem;
+  color: #bbb;
+}
+
+.admin-file-btn {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  background: var(--theme-primary-light);
+  color: var(--theme-primary-dark);
+  border: 1px dashed var(--theme-primary);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.admin-file-btn:hover {
+  background: var(--theme-primary-mid);
+}
+
+.admin-field-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #bbb;
+  margin-top: 0.2rem;
+}
+
+/* Album management */
+.admin-album-manager {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-album-manager h4 {
+  font-size: 0.95rem;
+  color: #333;
+  margin-bottom: 0.8rem;
+}
+
+.admin-album-create {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.admin-album-create input {
+  flex: 1;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.admin-album-create input:focus {
+  border-color: var(--theme-primary-dark);
+}
+
+.admin-album-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-album-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  background: var(--theme-primary-light);
+  color: var(--theme-primary-dark);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.admin-album-delete {
+  background: none;
+  border: none;
+  color: #e53935;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  margin-left: 0.1rem;
+}
+
+.admin-album-delete:hover {
+  color: #c62828;
+}
+
+.admin-batch-btn {
+  cursor: pointer;
+}
+
+.admin-batch-progress {
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-batch-progress-bar {
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.admin-batch-progress-fill {
+  height: 100%;
+  background: var(--theme-progress-fill);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.admin-batch-progress-text {
+  display: block;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.4rem;
+}
+
+.admin-photo-album {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--theme-primary);
+  background: var(--theme-primary-light);
+  padding: 0.1rem 0.5rem;
+  border-radius: 10px;
+  margin-bottom: 0.3rem;
+  display: inline-block;
+}
+
+/* Album detail header */
+.admin-album-detail-header {
+  text-align: center;
+  margin-bottom: 1.2rem;
+}
+
+.admin-album-detail-title {
+  font-size: 1.3rem;
+  color: #333;
+  margin: 0.5rem 0 0;
+}
+
+/* Album meta edit (description in detail view) */
+.admin-album-meta-edit {
+  margin-bottom: 1rem;
+}
+
+.admin-album-meta-edit input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.admin-album-meta-edit input:focus {
+  border-color: var(--theme-primary-dark);
+}
+
+/* Album create section */
+.admin-album-create-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-album-create-section h4 {
+  font-size: 0.95rem;
+  color: #333;
+  margin-bottom: 0.8rem;
+}
+
+.admin-album-create-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-album-create-row input {
+  flex: 1;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.admin-album-create-row input:focus {
+  border-color: var(--theme-primary-dark);
+}
+
+/* Admin album grid & cards */
+.admin-album-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.2rem;
+}
+
+.admin-album-card {
+  position: relative;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.admin-album-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 28px rgba(var(--theme-primary-rgb), 0.18);
+}
+
+.admin-album-cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--theme-primary-light);
+}
+
+.admin-album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.admin-album-card:hover .admin-album-cover img {
+  transform: scale(1.06);
+}
+
+.admin-album-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  background: var(--theme-album-cover-bg);
+}
+
+.admin-album-cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(var(--theme-primary-dark-rgb), 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.admin-album-card:hover .admin-album-cover-overlay {
+  opacity: 1;
+}
+
+.admin-album-cover-overlay span {
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.5rem 1.2rem;
+  border: 2px solid #fff;
+  border-radius: 30px;
+}
+
+.admin-album-info {
+  padding: 1rem 1.1rem;
+}
+
+.admin-album-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 0.25rem;
+}
+
+.admin-album-count {
+  font-size: 0.8rem;
+  color: var(--theme-primary);
+  font-weight: 500;
+}
+
+.admin-album-desc {
+  font-size: 0.82rem;
+  color: #999;
+  margin: 0.4rem 0 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.admin-album-card-delete {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 2;
+}
+
+.admin-album-card-delete:hover {
+  background: rgba(229, 57, 53, 0.85);
+}
+
+@media (max-width: 500px) {
+  .admin-header {
+    padding: 1rem;
+    gap: 0.8rem;
+  }
+
+  .admin-modal {
+    padding: 1.5rem;
+  }
+
+  .admin-photo-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-album-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-album-create-row {
+    flex-direction: column;
+  }
+}
+
+/* Theme picker */
+.admin-theme-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-theme-swatch {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.admin-theme-swatch:hover {
+  border-color: #aaa;
+}
+
+.admin-theme-swatch.active {
+  border-color: var(--theme-primary-dark);
+  background: var(--theme-primary-light);
+}
+
+.admin-theme-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admin-theme-label {
+  color: #555;
+}
+
+.admin-theme-custom {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.3rem;
+}
+
+.admin-theme-picker {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.admin-theme-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.admin-theme-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
+.admin-theme-custom-hex {
+  font-size: 0.9rem;
+  color: #888;
+  font-family: monospace;
+}

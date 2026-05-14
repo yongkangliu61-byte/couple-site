@@ -1,0 +1,4 @@
+.nav a.nav-active {
+  color: var(--theme-primary-dark);
+  font-weight: 600;
+}
