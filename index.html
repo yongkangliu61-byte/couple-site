@@ -11,6 +11,19 @@
     <link rel="stylesheet" crossorigin href="./assets/index-DFyHwazs.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p style="color:#fff;text-align:center;padding:2rem;font-family:sans-serif;">正在加载...</p></div>
+    <noscript><p style="color:#fff;text-align:center;padding:2rem;font-family:sans-serif;">请启用 JavaScript 以查看此网站</p></noscript>
+    <script>
+      window.onerror = function(msg, url, line, col, err) {
+        var root = document.getElementById('root');
+        if (root) root.innerHTML = '<div style="color:#f44336;text-align:center;padding:2rem;font-family:monospace;background:#fff3f3;margin:2rem;border-radius:8px;"><h3>应用加载失败</h3><p><b>错误:</b> ' + (err && err.message || msg) + '</p><p><b>文件:</b> ' + url + '</p><p><b>行:</b> ' + line + ':' + col + '</p><p style="color:#999;font-size:.85rem;">请尝试清除缓存后刷新</p></div>';
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        var root = document.getElementById('root');
+        if (root && root.textContent.includes('正在加载')) {
+          root.innerHTML = '<div style="color:#f44336;text-align:center;padding:2rem;font-family:monospace;background:#fff3f3;margin:2rem;border-radius:8px;"><h3>应用加载失败</h3><p><b>错误:</b> ' + (e.reason && (e.reason.message || String(e.reason))) + '</p><p style="color:#999;font-size:.85rem;">请尝试清除缓存后刷新</p></div>';
+        }
+      });
+    </script>
   </body>
 </html>
